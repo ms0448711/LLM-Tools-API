@@ -34,7 +34,7 @@ def run_shell(req_body:RunShellRequest):
     tmp_pipe_fp=Path('/tmp')/tmp_pipe_fp
 
     subprocess.call(f"tmux new -A -s {req_body.session_id} \; detach",shell=True)
-    subprocess.call(f"rm -f {tmp_pipe_fp} && mkfifo {tmp_pipe_fp} && tmux pipe-pane -t {req_body.session_id}.{req_body.pane_id} -o 'cat >{tmp_pipe_fp}'",shell=True)
+    subprocess.call(f"rm -f {tmp_pipe_fp} && mkfifo {tmp_pipe_fp} && tmux pipe-pane -t {req_body.session_id} -o 'cat >{tmp_pipe_fp}'",shell=True)
 
     stop_with_keyword_fp = Path('shell_scripts')/"stop_with_keywords.sh"
     keyword=random.randint(1e9,1e10-1)
@@ -43,10 +43,10 @@ def run_shell(req_body:RunShellRequest):
     time.sleep(1)
     proc=subprocess.Popen(f"cat {tmp_pipe_fp} |sh {stop_with_keyword_fp} {keyword}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
     time.sleep(1)
-    subprocess.call(f"tmux send-keys -t {req_body.session_id}.{req_body.pane_id} C-m",shell=True)
-    subprocess.call(f"tmux send-keys -t {req_body.session_id}.{req_body.pane_id} '{req_body.command}' '; echo $(({a}+{b}))' C-m", shell=True)
-    subprocess.call(f"tmux send-keys -t {req_body.session_id}.{req_body.pane_id} C-m",shell=True)
+    subprocess.call(f"tmux send-keys -t {req_body.session_id} C-m",shell=True)
+    subprocess.call(f"tmux send-keys -t {req_body.session_id} '{req_body.command}' '; echo $(({a}+{b}))' C-m", shell=True)
+    subprocess.call(f"tmux send-keys -t {req_body.session_id} C-m",shell=True)
     stdout, stderr = proc.communicate()
     subprocess.call(f"rm -f {tmp_pipe_fp}",shell=True)
     
-    return RunShellResponse(result=stdout,session_id=req_body.session_id,pane_id=req_body.pane_id)
+    return RunShellResponse(result=stdout,session_id=req_body.session_id)
