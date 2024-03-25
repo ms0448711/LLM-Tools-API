@@ -34,6 +34,7 @@ def run_shell(req_body:RunShellRequest):
     tmp_pipe_fp=Path('/tmp')/tmp_pipe_fp
 
     subprocess.run(f"tmux new -A -s {req_body.session_id} \; detach",shell=True)
+    subprocess.run(f"tmux pipe-pane -t {req_body.session_id} -o ''", shell=True)
     subprocess.run(f"rm -f {tmp_pipe_fp} ; mkfifo {tmp_pipe_fp} && tmux pipe-pane -t {req_body.session_id} -o 'cat >{tmp_pipe_fp}'",shell=True)
 
     stop_with_keyword_fp = Path('shell_scripts')/"stop_with_keywords.sh"
@@ -41,7 +42,7 @@ def run_shell(req_body:RunShellRequest):
     a=random.randint(1e8,1e9-1)
     b=keyword-a
     time.sleep(1)
-    proc=subprocess.Popen(f"cat {tmp_pipe_fp} |sh {stop_with_keyword_fp} {keyword}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
+    proc=subprocess.Popen(f"sh {stop_with_keyword_fp} {tmp_pipe_fp} {keyword}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
 
     subprocess.run(f"tmux send-keys -t {req_body.session_id} C-m",shell=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} '{req_body.command}' '; echo $(({a}+{b}))' C-m", shell=True)
@@ -51,23 +52,3 @@ def run_shell(req_body:RunShellRequest):
     
     return RunShellResponse(result=stdout,session_id=req_body.session_id)
 
-@router.post("/test", response_model=RunShellResponse)
-def run_shell(req_body:RunShellRequest):
-    tmp_pipe_fp=str(datetime.now().strftime('%Y%m%d%H%M')) + '-' + str(uuid.uuid4())[:8] + '.pipe'
-    tmp_pipe_fp=Path('/tmp')/tmp_pipe_fp
-
-    stop_with_keyword_fp = Path('shell_scripts')/"stop_with_keywords.sh"
-    keyword=random.randint(1e9,1e10-1)
-    a=random.randint(1e8,1e9-1)
-    b=keyword-a
-    time.sleep(1)
-    test_fp=Path('shell_scripts')/"test.sh"
-    proc=subprocess.Popen(f"sh {test_fp} {req_body.session_id} {tmp_pipe_fp} {stop_with_keyword_fp} {keyword}")
-
-    subprocess.run(f"tmux send-keys -t {req_body.session_id} C-m",shell=True)
-    subprocess.run(f"tmux send-keys -t {req_body.session_id} '{req_body.command}' '; echo $(({a}+{b}))' C-m", shell=True)
-    subprocess.run(f"tmux send-keys -t {req_body.session_id} C-m",shell=True)
-    stdout, stderr = proc.communicate()
-    subprocess.run(f"rm -f {tmp_pipe_fp}",shell=True)
-    
-    return RunShellResponse(result=stdout,session_id=req_body.session_id)
