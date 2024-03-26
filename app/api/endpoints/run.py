@@ -64,10 +64,10 @@ def run_shell(req_body:RunShellRequest):
 @router.post("/clean_session",response_model=CleanSessionResponse)
 def clean_session(req_body:CleanSessionRequest):
     try:
-        result=subprocess.check_output("tmux ls -f '#{m/ri:"+req_body.session_id+"*, #{session_name}}' -F '#{session_name}'",shell=True,stdin=subprocess.DEVNULL,stderr=subprocess.STDOUT,text=True)
+        result=subprocess.check_output("tmux ls -f '#{m/ri:"+req_body.prefix+"*, #{session_name}}' -F '#{session_name}'",shell=True,stdin=subprocess.DEVNULL,stderr=subprocess.STDOUT,text=True)
         result=str(result).split('\n')
         result.remove('')
-        subprocess.run("tmux ls -f '#{m/ri:"+req_body.session_id+"*, #{session_name}}' -F '#{session_name}' | xargs -r -n 1 tmux kill-session -t; exit 0",shell=True)
+        subprocess.run("tmux ls -f '#{m/ri:"+req_body.prefix+"*, #{session_name}}' -F '#{session_name}' | xargs -r -n 1 tmux kill-session -t; exit 0",shell=True)
     except:
         result=[]
     return CleanSessionResponse(result=result)
