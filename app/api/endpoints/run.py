@@ -56,7 +56,7 @@ def run_shell(req_body:RunShellRequest):
     subprocess.run(f"rm -f {tmp_pipe_fp}",shell=True)
     
     #remove reducdant words
-    for rw in [echo_str,keyword,'\r']:
+    for rw in [echo_str,str(keyword),'\r']:
         result=result.replace(rw,'')
 
     return RunShellResponse(result=result,session_id=req_body.session_id)
