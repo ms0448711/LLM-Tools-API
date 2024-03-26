@@ -39,12 +39,16 @@ def run_shell(req_body:RunShellRequest):
     subprocess.run(f"rm -f {tmp_pipe_fp} ; mkfifo {tmp_pipe_fp} && tmux pipe-pane -t {req_body.session_id} -o 'cat >{tmp_pipe_fp}'",shell=True)
 
     stop_with_keyword_fp = Path('shell_scripts')/"stop_with_keywords.sh"
-    keyword=random.randint(1e9,1e10-1)
-    a=random.randint(1e8,1e9-1)
-    b=keyword-a
-    time.sleep(1)
+    if req_body.no_output:
+        keyword=""
+        echo_str=""
+    else:
+        keyword=random.randint(1e9,1e10-1)
+        a=random.randint(1e8,1e9-1)
+        b=keyword-a
+        time.sleep(1)
+        echo_str=f"; echo $(({a}+{b}))"
     proc=subprocess.Popen(f"sh {stop_with_keyword_fp} {tmp_pipe_fp} {keyword}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True,text=True)
-    echo_str=f"; echo $(({a}+{b}))"
     subprocess.run(f"tmux send-keys -t {req_body.session_id} Enter",shell=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} '{req_body.command}' '{echo_str}' Enter", shell=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} Enter",shell=True)
