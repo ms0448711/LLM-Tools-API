@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 from app.schemas.run import RunRequest, RunResponse
 from app.schemas.run_shell import RunShellRequest,RunShellResponse
+from app.schemas.clean_session import CleanSessionRequest, CleanSessionResponse
 import subprocess
 from pathlib import Path
 from datetime import datetime
@@ -21,7 +22,7 @@ def run(req_body:RunRequest):
             fp=Path('./python_scripts')/script_name
             with open(fp,'w') as f:
                 f.write(req_body.command)
-            result=subprocess.check_output("python "+fp.__str__()+"; exit 0",stdin=subprocess.DEVNULL,stderr=subprocess.STDOUT,shell=True)
+            result=subprocess.check_output("python "+fp.__str__()+"; exit 0",stdin=subprocess.DEVNULL,stderr=subprocess.STDOUT,shell=True,text=True)
             subprocess.check_output(f"rm {fp};exit 0",stderr=subprocess.STDOUT,shell=True)
     except subprocess.CalledProcessError as e:
         result=e.output
@@ -42,13 +43,28 @@ def run_shell(req_body:RunShellRequest):
     a=random.randint(1e8,1e9-1)
     b=keyword-a
     time.sleep(1)
-    proc=subprocess.Popen(f"sh {stop_with_keyword_fp} {tmp_pipe_fp} {keyword}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True)
-
-    subprocess.run(f"tmux send-keys -t {req_body.session_id} C-m",shell=True)
-    subprocess.run(f"tmux send-keys -t {req_body.session_id} '{req_body.command}' '; echo $(({a}+{b}))' C-m", shell=True)
-    subprocess.run(f"tmux send-keys -t {req_body.session_id} C-m",shell=True)
-    stdout, stderr = proc.communicate()
+    proc=subprocess.Popen(f"sh {stop_with_keyword_fp} {tmp_pipe_fp} {keyword}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True,text=True)
+    echo_str=f"; echo $(({a}+{b}))"
+    subprocess.run(f"tmux send-keys -t {req_body.session_id} Enter",shell=True)
+    subprocess.run(f"tmux send-keys -t {req_body.session_id} '{req_body.command}' '{echo_str}' Enter", shell=True)
+    subprocess.run(f"tmux send-keys -t {req_body.session_id} Enter",shell=True)
+    result, _ = proc.communicate()
     subprocess.run(f"rm -f {tmp_pipe_fp}",shell=True)
     
-    return RunShellResponse(result=stdout,session_id=req_body.session_id)
+    #remove reducdant words
+    for rw in [echo_str,keyword,'\r']:
+        result=result.replace(rw,'')
+
+    return RunShellResponse(result=result,session_id=req_body.session_id)
+
+@router.post("/clean_session",response_model=CleanSessionResponse)
+def clean_session(req_body:CleanSessionRequest):
+    try:
+        result=subprocess.check_output("tmux ls -f '#{m/ri:"+req_body.session_id+"*, #{session_name}}' -F '#{session_name}'",shell=True,stdin=subprocess.DEVNULL,stderr=subprocess.STDOUT,text=True)
+        result=str(result).split('\n')
+        result.remove('')
+        subprocess.run("tmux ls -f '#{m/ri:"+req_body.session_id+"*, #{session_name}}' -F '#{session_name}' | xargs -r -n 1 tmux kill-session -t; exit 0",shell=True)
+    except:
+        result=[]
+    return CleanSessionResponse(result=result)
 
