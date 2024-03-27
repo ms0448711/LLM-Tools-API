@@ -48,7 +48,7 @@ def run_shell(req_body:RunShellRequest):
         b=keyword-a
         time.sleep(1)
         echo_str=f"; echo $(({a}+{b}))"
-    proc=subprocess.Popen(f"sh {stop_with_keyword_fp} {tmp_pipe_fp} {keyword}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True,text=True)
+    proc=subprocess.Popen(f"sh {stop_with_keyword_fp} {tmp_pipe_fp} {keyword} {req_body.timeout}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True,text=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} Enter",shell=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} '{req_body.command}' '{echo_str}' Enter", shell=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} Enter",shell=True)
