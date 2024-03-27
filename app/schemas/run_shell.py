@@ -7,8 +7,8 @@ class RunShellRequest(BaseModel):
     command:str
     session_id:str
     timeout:int=300
-    keyword:Optional[str]
-    no_output:bool=False
+    keyword:Optional[str]=None
+    output:bool=True
 
 class RunShellResponse(BaseModel):
     result:str

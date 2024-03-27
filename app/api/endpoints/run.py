@@ -8,6 +8,7 @@ from datetime import datetime
 import uuid
 import random
 import time
+import shlex
 router = APIRouter()
 
 @router.post("/run",response_model=RunResponse)
@@ -39,16 +40,23 @@ def run_shell(req_body:RunShellRequest):
     subprocess.run(f"rm -f {tmp_pipe_fp} ; mkfifo {tmp_pipe_fp} && tmux pipe-pane -t {req_body.session_id} -o 'cat >{tmp_pipe_fp}'",shell=True)
 
     stop_with_keyword_fp = Path('shell_scripts')/"stop_with_keywords.sh"
-    if req_body.no_output:
+
+    if not req_body.output:
         keyword=""
         echo_str=""
     else:
-        keyword=random.randint(1e9,1e10-1)
-        a=random.randint(1e8,1e9-1)
-        b=keyword-a
+        if req_body.keyword:
+            keyword=req_body.keyword
+            echo_str=""
+        else:
+            keyword=random.randint(1e9,1e10-1)
+            a=random.randint(1e8,1e9-1)
+            b=keyword-a
+            echo_str=f"; echo $(({a}+{b}))"
+
         time.sleep(1)
-        echo_str=f"; echo $(({a}+{b}))"
-    proc=subprocess.Popen(f"sh {stop_with_keyword_fp} {tmp_pipe_fp} {keyword} {req_body.timeout}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True,text=True)
+
+    proc=subprocess.Popen(f"bash {stop_with_keyword_fp} {tmp_pipe_fp} {keyword} {req_body.timeout}",stdout=subprocess.PIPE, stderr=subprocess.PIPE,shell=True,text=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} Enter",shell=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} '{req_body.command}' '{echo_str}' Enter", shell=True)
     subprocess.run(f"tmux send-keys -t {req_body.session_id} Enter",shell=True)
@@ -58,7 +66,7 @@ def run_shell(req_body:RunShellRequest):
     #remove reducdant words
     for rw in [echo_str,str(keyword),'\r']:
         result=result.replace(rw,'')
-
+    
     return RunShellResponse(result=result,session_id=req_body.session_id)
 
 @router.post("/clean_session",response_model=CleanSessionResponse)
